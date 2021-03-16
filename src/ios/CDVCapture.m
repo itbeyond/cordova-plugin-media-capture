@@ -183,7 +183,8 @@
     }
 
     // write to temp directory and return URI
-    NSString* docsPath = [NSTemporaryDirectory()stringByStandardizingPath];   // use file system temporary directory
+    // NSString* docsPath = [NSTemporaryDirectory()stringByStandardizingPath];   // use file system temporary directory
+    NSString* docsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES)lastObject];
     NSError* err = nil;
     NSFileManager* fileMgr = [[NSFileManager alloc] init];
 
@@ -281,18 +282,39 @@
 {
     // save the movie to photo album (only avail as of iOS 3.1)
 
-    /* don't need, it should automatically get saved
+    /* don't need, it should automatically get saved*/
      NSLog(@"can save %@: %d ?", moviePath, UIVideoAtPathIsCompatibleWithSavedPhotosAlbum(moviePath));
     if (&UIVideoAtPathIsCompatibleWithSavedPhotosAlbum != NULL && UIVideoAtPathIsCompatibleWithSavedPhotosAlbum(moviePath) == YES) {
         NSLog(@"try to save movie");
         UISaveVideoAtPathToSavedPhotosAlbum(moviePath, nil, nil, nil);
         NSLog(@"finished saving movie");
-    }*/
-    // create MediaFile object
-    NSDictionary* fileDict = [self getMediaDictionaryFromPath:moviePath ofType:nil];
-    NSArray* fileArray = [NSArray arrayWithObject:fileDict];
+    } 
+	NSData* data = [NSData dataWithContentsOfFile:moviePath options:nil error:nil];
+	NSString* docsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES)lastObject];
+    NSError* err = nil;
+    NSFileManager* fileMgr = [[NSFileManager alloc] init];
+	CDVPluginResult* result = nil;
 
-    return [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:fileArray];
+    // generate unique file name
+    NSString* filePath;
+    int i = 1;
+    do {
+        filePath = [NSString stringWithFormat:@"%@/video_%03d.mov", docsPath, i++];
+    } while ([fileMgr fileExistsAtPath:filePath]);
+		
+
+	 if (![data writeToFile:filePath options:NSAtomicWrite error:&err]) {
+        result = [CDVPluginResult resultWithStatus:CDVCommandStatus_IO_EXCEPTION messageToErrorObject:CAPTURE_INTERNAL_ERR];
+        if (err) {
+            NSLog(@"Error saving video: %@", [err localizedDescription]);
+        }
+    } else {
+        // create MediaFile object
+        NSDictionary* fileDict = [self getMediaDictionaryFromPath:filePath ofType:nil];
+        NSArray* fileArray = [NSArray arrayWithObject:fileDict];
+        result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:fileArray];
+    }
+    return result;
 }
 
 - (void)showAlertIfAccessProhibited
@@ -737,7 +759,8 @@
 
     // create file to record to in temporary dir
 
-    NSString* docsPath = [NSTemporaryDirectory()stringByStandardizingPath];   // use file system temporary directory
+    //NSString* docsPath = [NSTemporaryDirectory()stringByStandardizingPath];   // use file system temporary directory
+	NSString* docsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES)lastObject];
     NSError* err = nil;
     NSFileManager* fileMgr = [[NSFileManager alloc] init];
 
